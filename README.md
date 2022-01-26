@@ -86,6 +86,12 @@ def message_handler(jsondata):
 
         close_window()
 
+        minimize_window()
+
+        maximize_window()
+        
+        show_window()
+
         load_url(
             string
         )

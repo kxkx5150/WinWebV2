@@ -65,6 +65,7 @@ class WinWebV2:
             self.message_handler(jsondata)
             windll.user32.PostQuitMessage(0)
             return 0
+            
         elif message == win32con.WM_SIZE:
             self.webview2.resize_webview(const.g_hwnd)
             jsondata = {
@@ -79,8 +80,6 @@ class WinWebV2:
             if self.randomid != dwdata:
                 return 0
 
-            # self.close_window()
-
             msgstr = ctypes.wstring_at(pcds.contents.lpData)
             jsondata = json.loads(msgstr)
             self.message_handler(jsondata)
@@ -89,12 +88,28 @@ class WinWebV2:
         return const.wrappedWndProc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
                                     ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
 
+
+
+
     def load_url(self, url):
         self.webview2.load_url(url)
 
     def close_window(self):
         windll.user32.PostQuitMessage(0)
             
+    def minimize_window(self):
+        windll.user32.ShowWindow(const.g_hwnd, win32con.SW_MINIMIZE)
+
+    def maximize_window(self):
+        windll.user32.ShowWindow(const.g_hwnd, win32con.SW_MAXIMIZE)
+
+    def show_window(self):
+        windll.user32.ShowWindow(const.g_hwnd, win32con.SW_SHOWNORMAL)
+
+
+
+
+
     def execute_js(self, script):
         self.webview2.exec_js(script)
 
@@ -106,6 +121,13 @@ class WinWebV2:
 
     def reload_page(self):
         self.webview2.reload_page()
+
+
+
+
+
+
+
 
     class COPYDATASTRUCT(ctypes.Structure):
         _fields_ = [
