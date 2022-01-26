@@ -8,7 +8,7 @@ with open('README.md') as read_me:
 
 setup(
     name='WinWebV2',
-    version="0.0.1",
+    version="0.0.2",
     author="Kunihiro Ando",
     author_email='senna5150ando@gmail.com',
     packages=['WinWebV2'],
