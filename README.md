@@ -2,11 +2,29 @@
 ## Python Webview2 GUI
 ### Create HTML User Interface using WinWebV2 in Python
 
+<br><br><br>
+
+## Windows10    
+<pre>
+python -m venv .\venv  
+.\venv\Scripts\activate  
+pip install WinWebV2
+</pre>
+
 <br>
 
-Windows10  
+### Sample File
+<pre>
+import WinWebV2
 
-WIP  
+def message_handler(jsondata):
+    print(jsondata)
+
+wv2 = WinWebV2(message_handler)
+url = 'Document Path'
+wv2.create_window(url, -1, -1, 600, 400)
+</pre>
+
 
 <br><br><br>
 
