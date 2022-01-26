@@ -11,14 +11,12 @@ from ctypes.wintypes import *
 from pconst import const
 
 
-
-
 class WinWebV2:
     def __init__(self, cb):
         print(callable(cb))
         if not callable(cb):
             print("Error arguments\nPlease set Callback Function")
-            return;
+            return
 
         self.WINDOWPROC = WINFUNCTYPE(LPARAM, HWND, UINT, WPARAM, LPARAM)
         ctypes.windll.user32.GetWindowLongPtrW.restype = c_void_p
@@ -40,9 +38,9 @@ class WinWebV2:
         self.webview2.exec_js.argtypes = [c_wchar_p]
         self.webview2.set_startup_script.argtypes = [c_wchar_p]
         self.webview2.send_json.argtypes = [c_wchar_p]
-        
-    def myName( self ):
-        print( 'WinWebV2' )
+
+    def myname(self):
+        print('WinWebV2')
 
     def create_window(self, url, x, y, width, height):
         thread1 = threading.Thread(target=self.create_main_window, args=(url, x, y, width, height), daemon=True)
@@ -69,6 +67,10 @@ class WinWebV2:
             return 0
         elif message == win32con.WM_SIZE:
             self.webview2.resize_webview(const.g_hwnd)
+            jsondata = {
+                "msg": "resize_window"
+            }
+            self.message_handler(jsondata)
             return 0
 
         elif message == win32con.WM_COPYDATA:
@@ -76,6 +78,9 @@ class WinWebV2:
             dwdata = pcds.contents.dwData
             if self.randomid != dwdata:
                 return 0
+
+            # self.close_window()
+
             msgstr = ctypes.wstring_at(pcds.contents.lpData)
             jsondata = json.loads(msgstr)
             self.message_handler(jsondata)
@@ -84,6 +89,12 @@ class WinWebV2:
         return const.wrappedWndProc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
                                     ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
 
+    def load_url(self, url):
+        self.webview2.load_url(url)
+
+    def close_window(self):
+        windll.user32.PostQuitMessage(0)
+            
     def execute_js(self, script):
         self.webview2.exec_js(script)
 
@@ -104,8 +115,6 @@ class WinWebV2:
         ]
 
 
-
-
 def message_handler(jsondata):
     print(jsondata)
 
@@ -115,9 +124,8 @@ def main():
     target_path = os.path.join(os.path.dirname(__file__), 'html/index.html')
     url = os.path.abspath(target_path)
     # url = "https://twitter.com/home"
-    wv2.create_window(url, -1, -1, 600, 400)
+    wv2.create_window(url, -1, -1, 700, 600)
 
 
 if __name__ == "__main__":
     main()
-

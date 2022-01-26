@@ -1,28 +1,38 @@
-from setuptools import setup, find_packages
- 
+from io import open
+from setuptools import setup
+
+
+with open('README.md') as read_me:
+    long_description = read_me.read()
+
+
 setup(
-    name='WinWebV2',    #パッケージ名
+    name='WinWebV2',
     version="0.0.1",
-    description="Python Webview2 GUI",
     author="Kunihiro Ando",
+    author_email='senna5150ando@gmail.com',
+    packages=['WinWebV2'],
     license='MIT',
+    url="https://github.com/kxkx5150/WinWebV2",
+    description='Create HTML User Interface using WinWebV2 in Python',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     include_package_data=True,
-    package_data={"WinWebV2": [
-        'WinWebV2/dll/WebV2dll.dll',
-        'WinWebV2/dll/WebView2Loader.dll',
-        'WinWebV2/html/*'
-    ]},
+    package_data={
+        "WinWebV2": [
+            'dll/*',
+            'html/*'
+        ]
+    },
+    python_requires='>=3.9',
+    keywords=['gui', 'html', 'javascript', 'electron'],
     classifiers=[
-        "Development Status :: 1 - Planning"
+        "Development Status :: 1 - Planning",
+        "Operating System :: Microsoft :: Windows"
     ],
-    # install_requires=[
-    #     'pypiwin32',
-    #     'pywin32'
-    # ],
     install_requires=[
         "pconst",
         "pypiwin32",
         "pywin32"
-    ],
-    packages=['WinWebV2']
+    ]
 )

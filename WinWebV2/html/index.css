@@ -1,13 +1,16 @@
 html, body {
     margin: 0;
-    border: none;
     padding: 0;
+    border: none;
     background: #333;
     color: #eee;
 }
-h3{
-	color: deeppink;
+
+h3 {
+    color: deeppink;
+    text-align: center;
 }
+
 p {
     margin: 0;
 }

@@ -84,6 +84,12 @@ def message_handler(jsondata):
             height
         )
 
+        close_window()
+
+        load_url(
+            string
+        )
+
         execute_js(
             string
         )
@@ -131,6 +137,7 @@ message_handler
 
 {'msg': 'DOMContentLoaded'}
 {'msg': 'WM_DESTROY'}
+{'msg': 'resize_window'}
 
 </pre>
 
