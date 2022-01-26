@@ -143,9 +143,9 @@ def message_handler(jsondata):
 
 
     // String  (Convert to JSON with DLL)
-    WinWebV2.send_json('{
-      "msg": "Hello world",
-      "base64": "QXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3Uh",
+    WinWebV2.send_json('{\
+      "msg": "Hello world",\
+      "base64": "QXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3Uh",\
       ...
     }')
 
