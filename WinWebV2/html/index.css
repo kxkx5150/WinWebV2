@@ -1,0 +1,17 @@
+html, body {
+    margin: 0;
+    border: none;
+    padding: 0;
+    background: #333;
+    color: #eee;
+}
+h3{
+	color: deeppink;
+}
+p {
+    margin: 0;
+}
+
+* {
+    user-select: none;
+}
