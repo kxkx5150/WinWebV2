@@ -121,7 +121,7 @@ def message_handler(jsondata):
 
     --- js ---
  
-    window.chrome.webview.postMessage(message);
+    window.chrome.webview.postMessage('{ "msg" : "Arigato gozaimasu!" }');
     window.chrome.webview.addEventListener('message', messageHandler);
 
 
