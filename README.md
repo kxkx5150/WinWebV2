@@ -119,17 +119,41 @@ def message_handler(jsondata):
 
 <pre>
 
+
     --- js ---
- 
-    window.chrome.webview.postMessage('{ "msg" : "Arigato gozaimasu!" }');
+    
+    
+    // JSON
+    window.chrome.webview.postMessage({
+        "msg" : "Arigato gozaimasu!",
+        "base64" : "QXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3Uh",
+        ...
+    });
+                     
+                     
+    // JSON                               
     window.chrome.webview.addEventListener('message', messageHandler);
 
 
 
-    --- pythoon ---
 
-    WinWebV2.send_json('{ "msg" : "Hello world" }')
+
+
+    --- python ---
+
+
+    // String  (Convert to JSON with DLL)
+    WinWebV2.send_json('{
+      "msg": "Hello world",
+      "base64": "QXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3Uh",
+      ...
+    }')
+
+
+    // JSON
     def message_handler(jsondata):
+
+
 
 
 </pre>
