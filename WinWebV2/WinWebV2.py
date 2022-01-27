@@ -8,12 +8,28 @@ import ctypes
 from ctypes import *
 from ctypes import wintypes
 from ctypes.wintypes import *
-from pconst import const
+
+
+class WindInfo:
+    def __init__(self):
+        self.hwnd = None
+        self.wndproc = None
+
+    def set_hwnd(self, hwnd):
+        self.hwnd = hwnd
+
+    def set_wndproc(self, wndproc):
+        self.wndproc = wndproc
+
+    def get_hwnd(self):
+        return self.hwnd
+
+    def get_wndproc(self):
+        return self.wndproc
 
 
 class WinWebV2:
     def __init__(self, cb):
-        print(callable(cb))
         if not callable(cb):
             print("Error arguments\nPlease set Callback Function")
             return
@@ -25,53 +41,60 @@ class WinWebV2:
 
         target_path = os.path.join(os.path.dirname(__file__), 'dll/WebV2dll')
         self.webview2 = ctypes.WinDLL(target_path)
-        self.webview2.WebV2dllCreate.argtypes = [c_wchar_p, c_int, c_int, c_int, c_int]
+
+        self.webview2.WebV2dllCreate.argtypes = [c_int, c_wchar_p, c_int, c_int, c_int, c_int]
+        self.webview2.get_main_hwnd.argtypes = [c_int]
+        self.webview2.get_main_hwnd.restype = HWND
         self.webview2.resize_webview.argtypes = [HWND]
+
         self.webview2.get_webview_wmmsg_id.restype = c_int
+        self.WM_WEBV_USER = self.webview2.get_webview_wmmsg_id()
         self.PCOPYDATASTRUCT = ctypes.POINTER(self.COPYDATASTRUCT)
         self.randomid = random.randint(1, 2147483640)
         self.webview2.receive_randomid(self.randomid)
         self.webview2.receive_randomid.argtypes = [c_int]
         self.message_handler = cb
 
-        self.webview2.load_url.argtypes = [c_wchar_p]
-        self.webview2.exec_js.argtypes = [c_wchar_p]
-        self.webview2.set_startup_script.argtypes = [c_wchar_p]
-        self.webview2.send_json.argtypes = [c_wchar_p]
+        self.webview2.close_window.argtypes = [HWND]
+        self.webview2.reload_page.argtypes = [HWND]
+        self.webview2.load_url.argtypes = [HWND, c_wchar_p]
+        self.webview2.set_global_startup_script.argtypes = [c_wchar_p]
+        self.webview2.set_startup_script.argtypes = [HWND, c_wchar_p]
+        self.webview2.exec_js.argtypes = [HWND, c_wchar_p]
+        self.webview2.send_json.argtypes = [HWND, c_wchar_p]
 
-    def myname(self):
-        print('WinWebV2')
+        self.window_infos = {}
 
     def create_window(self, url, x, y, width, height):
-        thread1 = threading.Thread(target=self.create_main_window, args=(url, x, y, width, height), daemon=True)
+        createid = random.randint(1, 2147483640)
+        thread1 = threading.Thread(target=self.create_main_window, args=(createid, url, x, y, width, height),
+                                   daemon=True)
         thread1.start()
         time.sleep(0.1)
-        const.g_hwnd = self.webview2.get_main_hwnd()
-        orgproc = windll.user32.GetWindowLongPtrW(const.g_hwnd, win32con.GWL_WNDPROC)
-        const.wrappedWndProc = self.WINDOWPROC(orgproc)
-        const.WM_WEBV_USER = self.webview2.get_webview_wmmsg_id()
+
+        hwnd = self.webview2.get_main_hwnd(createid)
+        orgproc = windll.user32.GetWindowLongPtrW(hwnd, win32con.GWL_WNDPROC)
+        wndinf = WindInfo()
+        wndinf.set_hwnd(hwnd)
+        wndinf.set_wndproc(self.WINDOWPROC(orgproc))
+        self.window_infos[hwnd] = wndinf
+
         windll.user32.SetWindowLongPtrW(
-            c_void_p(const.g_hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
+            c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
         thread1.join()
 
-    def create_main_window(self, url, x, y, width, height):
-        self.webview2.WebV2dllCreate(url, x, y, width, height)
+    def create_main_window(self, createid, url, x, y, width, height):
+        self.webview2.WebV2dllCreate(createid, url, x, y, width, height)
 
     def wndproc(self, hwnd, message, wparm, lparam):
         if message == win32con.WM_DESTROY:
-            jsondata = {
-                "msg": "WM_DESTROY"
-            }
-            self.message_handler(jsondata)
+            self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"WM_DESTROY"}'))
             windll.user32.PostQuitMessage(0)
             return 0
 
         elif message == win32con.WM_SIZE:
-            self.webview2.resize_webview(const.g_hwnd)
-            jsondata = {
-                "msg": "resize_window"
-            }
-            self.message_handler(jsondata)
+            self.webview2.resize_webview(self.window_infos[hwnd].get_hwnd())
+            self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"resize_window"}'))
             return 0
 
         elif message == win32con.WM_COPYDATA:
@@ -81,40 +104,48 @@ class WinWebV2:
                 return 0
 
             msgstr = ctypes.wstring_at(pcds.contents.lpData)
-            jsondata = json.loads(msgstr)
-            self.message_handler(jsondata)
+            self.apply_message_handler(hwnd, "receive_json", json.loads(msgstr))
             return 0
 
-        return const.wrappedWndProc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
-                                    ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
+        wndproc = self.window_infos[hwnd].get_wndproc()
+        return wndproc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
+                       ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
 
-    def load_url(self, url):
-        self.webview2.load_url(url)
+    def apply_message_handler(self, hwnd, msg, jsondata=None):
+        _json = {
+            "sender": self,
+            "hwnd": hwnd,
+            "msg": msg,
+            "json": jsondata
+        }
+        self.message_handler(_json)
 
-    def close_window(self):
-        windll.user32.PostQuitMessage(0)
-            
-    def minimize_window(self):
-        windll.user32.ShowWindow(const.g_hwnd, win32con.SW_MINIMIZE)
+    def close_window(self, hwnd):
+        self.webview2.close_window(hwnd)
 
-    def maximize_window(self):
-        windll.user32.ShowWindow(const.g_hwnd, win32con.SW_MAXIMIZE)
+    def minimize_window(self, hwnd):
+        windll.user32.ShowWindow(hwnd, win32con.SW_MINIMIZE)
 
-    def show_window(self):
-        windll.user32.ShowWindow(const.g_hwnd, win32con.SW_SHOWNORMAL)
+    def maximize_window(self, hwnd):
+        windll.user32.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
 
-    def execute_js(self, script):
-        self.webview2.exec_js(script)
+    def show_window(self, hwnd):
+        windll.user32.ShowWindow(hwnd, win32con.SW_SHOWNORMAL)
+
+    def load_url(self, hwnd, url):
+        self.webview2.load_url(hwnd, url)
+
+    def reload_page(self, hwnd):
+        self.webview2.reload_page(hwnd)
 
     def set_startup_js(self, script):
-        self.webview2.set_startup_script(script)
+        self.webview2.set_global_startup_script(script)
 
-    def send_json(self, jsonstr):
-        self.webview2.send_json(jsonstr)
+    def execute_js(self, hwnd, script):
+        self.webview2.exec_js(hwnd, script)
 
-    def reload_page(self):
-        self.webview2.reload_page()
-
+    def send_json(self, hwnd, jsonstr):
+        self.webview2.send_json(hwnd, jsonstr)
 
     class COPYDATASTRUCT(ctypes.Structure):
         _fields_ = [
@@ -125,14 +156,46 @@ class WinWebV2:
 
 
 def message_handler(jsondata):
-    print(jsondata)
+    if jsondata['msg'] == 'receive_json':
+
+        if jsondata['json']['msg'] == "DOMContentLoaded":
+            print("DOMContentLoaded")
+
+        elif jsondata['json']['msg'] == "WM_DESTROY":
+            print("WM_DESTROY")
+
+        elif jsondata['json']['msg'] == "resize_window":
+            print("resize_window")
+
+        elif jsondata['json']['msg'] == "load_google":
+            jsondata['sender'].load_url(jsondata['hwnd'], "https://www.google.com/")
+
+        elif jsondata['json']['msg'] == "close_window":
+            jsondata['sender'].close_window(jsondata['hwnd'])
+
+        elif jsondata['json']['msg'] == "reload_page":
+            jsondata['sender'].reload_page(jsondata['hwnd'])
+
+        elif jsondata['json']['msg'] == "minimize_window":
+            jsondata['sender'].minimize_window(jsondata['hwnd'])
+
+        elif jsondata['json']['msg'] == "maximize_window":
+            jsondata['sender'].maximize_window(jsondata['hwnd'])
+
+        elif jsondata['json']['msg'] == "show_window":
+            jsondata['sender'].show_window(jsondata['hwnd'])
+
+        elif jsondata['json']['msg'] == "execute_js":
+            jsondata['sender'].execute_js(jsondata['hwnd'], "alert(1);")
+
+        elif jsondata['json']['msg'] == "send_json":
+            jsondata['sender'].send_json(jsondata['hwnd'], '{"msg":"test"}')
 
 
 def main():
     wv2 = WinWebV2(message_handler)
     target_path = os.path.join(os.path.dirname(__file__), 'html/index.html')
     url = os.path.abspath(target_path)
-    # url = "https://twitter.com/home"
     wv2.create_window(url, -1, -1, 700, 600)
 
 

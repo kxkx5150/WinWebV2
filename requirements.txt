@@ -1,3 +1,2 @@
-pconst==1.0.0
 pypiwin32==223
 pywin32==303

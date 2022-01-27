@@ -1,0 +1,9 @@
+wheel
+python setup.py bdist_wheel
+
+clean
+python setup.py clean --all
+
+pypi
+python setup.py sdist
+twine upload dist/*

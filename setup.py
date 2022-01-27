@@ -8,7 +8,7 @@ with open('README.md') as read_me:
 
 setup(
     name='WinWebV2',
-    version="0.0.2",
+    version="0.1.0",
     author="Kunihiro Ando",
     author_email='senna5150ando@gmail.com',
     packages=['WinWebV2'],
@@ -31,7 +31,6 @@ setup(
         "Operating System :: Microsoft :: Windows"
     ],
     install_requires=[
-        "pconst",
         "pypiwin32",
         "pywin32"
     ]

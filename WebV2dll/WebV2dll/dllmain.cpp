@@ -5,27 +5,31 @@
 #include <stdlib.h>
 #include <string>
 #include <tchar.h>
+#include <vector>
 #include <wil/com.h>
 #include <wrl.h>
 #include "WebV2dll.h"
 #include "WebView2.h"
 #pragma comment(lib, "comctl32.lib")
 
+#define WM_WEBV_USER (WM_USER + 0)
+using namespace Microsoft::WRL;
+struct windowobj {
+    HWND hwnd = nullptr;
+    wil::com_ptr<ICoreWebView2> webviewWindow = nullptr;
+    wil::com_ptr<ICoreWebView2Controller> webviewController = nullptr;
+    wil::com_ptr<ICoreWebView2_2> webView2 = nullptr;
+    std::wstring startup_script = L"";
+    int createid = -1;
+};
+
 HINSTANCE hInst;
-HWND g_hwnd = nullptr;
 int g_randomid = 0;
 const TCHAR* strClassName = TEXT("CREATE_WEBVIEW2");
-#define WM_WEBV_USER (WM_USER + 0)
 std::wstring g_startup_script = L"";
+std::vector<windowobj> m_windowobjs;
 
-using namespace Microsoft::WRL;
-static wil::com_ptr<ICoreWebView2> webviewWindow;
-static wil::com_ptr<ICoreWebView2_2> m_webView2;
-static wil::com_ptr<ICoreWebView2Controller> webviewController;
-
-BOOL APIENTRY DllMain(HMODULE hModule,
-    DWORD ul_reason_for_call,
-    LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call) {
     case DLL_PROCESS_ATTACH:
@@ -36,32 +40,39 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     }
     return TRUE;
 }
-
+int get_current_windowobj_idx(HWND hwnd)
+{
+    for (int i = 0; i < m_windowobjs.size(); i++) {
+        if (m_windowobjs[i].hwnd == hwnd) {
+            return i;
+        }
+    }
+    return -1;
+}
 void receive_randomid(int randomid)
 {
     g_randomid = randomid;
 }
-void webview_settings()
+void load_url(HWND hWnd, const TCHAR* url)
 {
-    ICoreWebView2Settings* Settings;
-    webviewWindow->get_Settings(&Settings);
-    Settings->put_IsScriptEnabled(TRUE);
-    Settings->put_AreDefaultScriptDialogsEnabled(TRUE);
-    Settings->put_IsWebMessageEnabled(TRUE);
+    int idx = get_current_windowobj_idx(hWnd);
+    m_windowobjs[idx].webviewWindow->Navigate(url);
 }
 void resize_webview(HWND hWnd)
 {
-    if (webviewController != nullptr) {
+    int idx = get_current_windowobj_idx(hWnd);
+
+    if (m_windowobjs[idx].webviewController != nullptr) {
         RECT bounds;
-        GetClientRect(hWnd, &bounds);
-        webviewController->put_Bounds(bounds);
+        GetClientRect(m_windowobjs[idx].hwnd, &bounds);
+        m_windowobjs[idx].webviewController->put_Bounds(bounds);
     };
 }
 int get_webview_wmmsg_id()
 {
     return WM_WEBV_USER;
 }
-void set_str_to_copydata(std::wstring s)
+void set_str_to_copydata(HWND hWnd, std::wstring s)
 {
     TCHAR* buffer = new TCHAR[s.length() + 1];
     wcscpy_s(buffer, s.length() + 1, s.c_str());
@@ -69,35 +80,49 @@ void set_str_to_copydata(std::wstring s)
     data_to_send.dwData = g_randomid;
     data_to_send.cbData = (DWORD)8191;
     data_to_send.lpData = buffer;
-    SendMessage(g_hwnd, WM_COPYDATA, 0, (LPARAM)&data_to_send);
+    SendMessage(hWnd, WM_COPYDATA, 0, (LPARAM)&data_to_send);
     delete[] buffer;
 }
-HWND get_main_hwnd()
+HWND get_main_hwnd(int createid)
 {
-    return g_hwnd;
+    for (int i = 0; i < m_windowobjs.size(); i++) {
+        if (m_windowobjs[i].createid == createid) {
+            return m_windowobjs[i].hwnd;
+        }
+    }
+    return nullptr;
 }
-void load_url(const TCHAR* url)
+void close_window(HWND hWnd)
 {
-    webviewWindow->Navigate(url);
+    PostMessage(hWnd, WM_CLOSE, 0, 0);
 }
-void exec_js(const TCHAR* script)
+void reload_page(HWND hWnd)
 {
-    webviewWindow->ExecuteScript(script,
+    int idx = get_current_windowobj_idx(hWnd);
+    m_windowobjs[idx].webviewWindow->Reload();
+}
+void set_startup_script(HWND hWnd, const TCHAR* script)
+{
+    int idx = get_current_windowobj_idx(hWnd);
+    m_windowobjs[idx].startup_script = script;
+}
+void set_global_startup_script(const TCHAR* script)
+{
+    g_startup_script = script;
+}
+void exec_js(HWND hWnd, const TCHAR* script)
+{
+    int idx = get_current_windowobj_idx(hWnd);
+
+    m_windowobjs[idx].webviewWindow->ExecuteScript(script,
         Callback<ICoreWebView2ExecuteScriptCompletedHandler>([](HRESULT error, PCWSTR result) -> HRESULT {
             return S_OK;
         }).Get());
 }
-void send_json(const TCHAR* jsonstr)
+void send_json(HWND hWnd, const TCHAR* jsonstr)
 {
-    webviewWindow->PostWebMessageAsJson(jsonstr);
-}
-void set_startup_script(const TCHAR* script)
-{
-    g_startup_script = script;
-}
-void reload_page()
-{
-    webviewWindow->Reload();
+    int idx = get_current_windowobj_idx(hWnd);
+    m_windowobjs[idx].webviewWindow->PostWebMessageAsJson(jsonstr);
 }
 void CHECK_FAILURE(HRESULT hr)
 {
@@ -107,35 +132,44 @@ void CHECK_FAILURE(HRESULT hr)
         MessageBoxW(nullptr, message.c_str(), nullptr, MB_OK);
     }
 }
-void webview_events()
+void webview_events(HWND hWnd)
 {
+    int idx = get_current_windowobj_idx(hWnd);
+
     EventRegistrationToken token;
-    webviewWindow->add_WebMessageReceived(
+    m_windowobjs[idx].webviewWindow->add_WebMessageReceived(
         Callback<ICoreWebView2WebMessageReceivedEventHandler>(
-            [](ICoreWebView2* webview, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+            [hWnd](ICoreWebView2* webview, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
                 wil::unique_cotaskmem_string source;
                 CHECK_FAILURE(args->get_Source(&source));
                 wil::unique_cotaskmem_string webMessageAsJson;
                 CHECK_FAILURE(args->get_WebMessageAsJson(&webMessageAsJson));
                 Sleep(200);
-                set_str_to_copydata(webMessageAsJson.get());
+                set_str_to_copydata(hWnd, webMessageAsJson.get());
                 return S_OK;
             })
             .Get(),
         &token);
-    webviewWindow->AddScriptToExecuteOnDocumentCreated(g_startup_script.c_str(),
+
+    std::wstring script = g_startup_script;
+    if (4 < m_windowobjs[idx].startup_script.length())
+        script = m_windowobjs[idx].startup_script;
+
+    m_windowobjs[idx].webviewWindow->AddScriptToExecuteOnDocumentCreated(script.c_str(),
         Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
             [](HRESULT error, PCWSTR id) -> HRESULT {
                 return S_OK;
             })
             .Get());
     EventRegistrationToken m_DOMContentLoadedToken;
-    webviewWindow->QueryInterface(IID_PPV_ARGS(&m_webView2));
-    m_webView2->add_DOMContentLoaded(
+    wil::com_ptr<ICoreWebView2_2> webView2;
+    m_windowobjs[idx].webviewWindow->QueryInterface(IID_PPV_ARGS(&webView2));
+    m_windowobjs[idx].webView2 = webView2;
+    webView2->add_DOMContentLoaded(
         Callback<ICoreWebView2DOMContentLoadedEventHandler>(
-            [](ICoreWebView2* sender, ICoreWebView2DOMContentLoadedEventArgs* args) -> HRESULT {
+            [hWnd](ICoreWebView2* sender, ICoreWebView2DOMContentLoadedEventArgs* args) -> HRESULT {
                 std::wstring msgstr = L"{\"msg\"\:\"DOMContentLoaded\"}";
-                set_str_to_copydata(msgstr);
+                set_str_to_copydata(hWnd, msgstr);
                 return S_OK;
             })
             .Get(),
@@ -162,14 +196,23 @@ void init_webview2(HWND hWnd, const TCHAR* url)
                 env->CreateCoreWebView2Controller(hWnd,
                     Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
                         [hWnd, url](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                            wil::com_ptr<ICoreWebView2> webviewWindow;
                             if (controller != nullptr) {
-                                webviewController = controller;
+                                auto webviewController = controller;
                                 webviewController->get_CoreWebView2(&webviewWindow);
+                                int idx = get_current_windowobj_idx(hWnd);
+                                m_windowobjs[idx].webviewController = controller;
+                                m_windowobjs[idx].webviewWindow = webviewWindow;
                             }
-                            webview_settings();
+                            ICoreWebView2Settings* Settings;
+                            webviewWindow->get_Settings(&Settings);
+                            Settings->put_IsScriptEnabled(TRUE);
+                            Settings->put_AreDefaultScriptDialogsEnabled(TRUE);
+                            Settings->put_IsWebMessageEnabled(TRUE);
+
                             resize_webview(hWnd);
-                            load_url(url);
-                            webview_events();
+                            webview_events(hWnd);
+                            load_url(hWnd, url);
                             return S_OK;
                         })
                         .Get());
@@ -177,7 +220,7 @@ void init_webview2(HWND hWnd, const TCHAR* url)
             })
             .Get());
 }
-int WebV2dllCreate(const TCHAR* url, int x, int y, int width, int height)
+int WebV2dllCreate(int createid, const TCHAR* url, int x, int y, int width, int height)
 {
 
     HINSTANCE hInstance = GetModuleHandle(0);
@@ -198,16 +241,24 @@ int WebV2dllCreate(const TCHAR* url, int x, int y, int width, int height)
         x = CW_USEDEFAULT;
         y = CW_USEDEFAULT;
     }
-    g_hwnd = CreateWindow(
+    HWND hwnd = CreateWindow(
         strClassName, TEXT(""),
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         x, y, width, height,
         NULL, NULL, hInstance, NULL);
 
-    if (g_hwnd == NULL)
+    if (hwnd == NULL)
         return 0;
 
-    init_webview2(g_hwnd, url);
+    windowobj wobj;
+    wobj.hwnd = hwnd;
+    wobj.webviewWindow = nullptr;
+    wobj.webviewController = nullptr;
+    wobj.webView2 = nullptr;
+    wobj.startup_script = L"";
+    wobj.createid = createid;
+    m_windowobjs.push_back(wobj);
+    init_webview2(hwnd, url);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
