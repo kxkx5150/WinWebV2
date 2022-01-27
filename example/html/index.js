@@ -53,5 +53,8 @@ function init() {
     document.getElementById("reload_page").addEventListener("click",(e)=>{
         sendMSG("reload_page");
     })
+    document.getElementById("create_subwindow").addEventListener("click",(e)=>{
+        sendMSG("create_subwindow");
+    })
 }
 init();

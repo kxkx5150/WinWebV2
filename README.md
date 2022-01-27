@@ -2,12 +2,12 @@
 ### Python Webview2 GUI
 ### Create HTML User Interface using WinWebV2 in Python
 
-<br><br>
+<br>
 
 Webview2  
 https://docs.microsoft.com/en-us/microsoft-edge/webview2/  
 
-<br><br><br>
+<br><br>
 
 ## Windows10    
 <pre>
@@ -19,158 +19,5 @@ pip install WinWebV2
 <br>
 
 ### Sample File
-<pre>
-import WinWebV2
 
-def message_handler(jsondata):
-    print(jsondata)
-
-wv2 = WinWebV2(message_handler)
-url = 'Document Path'
-wv2.create_window(url, -1, -1, 600, 400)
-</pre>
-
-
-<br><br><br>
-
-Create DLL (VC++)  
-Main (Python)
-
-<br>
-
-https://user-images.githubusercontent.com/10168979/151161912-bb0a36b8-05dd-4b5b-b6b5-1e90f69a7b90.mp4
-
-
-
-
-<br><br>
-
-## Sample
-
-<pre>
-
-
-def main():  
-    url = os.path.abspath("html/index.html")
-
-    wv2 = WinWebV2(message_handler)
-    wv2.create_window(url, -1, -1, 600, 400)
-    # (x = -1 or y = -1) == CW_USEDEFAULT
-
-    # execute script
-    wv2.set_startup_js('alert(0);')
-    wv2.execute_js('alert(0);')
-
-
-def message_handler(jsondata):
-    print(jsondata)
-    pass
-
-
-</pre>
-
-<br><br><br>
-
-## Class
-
-<pre>
-
-    class WinWebV2
-
-        create_window(
-            x,
-            y,
-            width,
-            height
-        )
-
-        close_window()
-
-        minimize_window()
-
-        maximize_window()
-        
-        show_window()
-
-        load_url(
-            string
-        )
-
-        execute_js(
-            string
-        )
-
-        set_startup_js(
-            string
-        )
-
-        send_json(
-            string
-        )
-
-        reload_page()
-
-
-</pre>
-
-<br>
-
-## Communication
-
-<pre>
-
-
-    --- js ---
-    
-    
-    // JSON
-    window.chrome.webview.postMessage({
-        "msg" : "Arigato gozaimasu!",
-        "base64" : "QXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3Uh",
-        ...
-    });
-                     
-                     
-    // JSON                               
-    window.chrome.webview.addEventListener('message', messageHandler);
-
-
-
-
-
-
-    --- python ---
-
-
-    // String  (Convert to JSON with DLL)
-    WinWebV2.send_json('{\
-      "msg": "Hello world",\
-      "base64": "QXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3UhQXJpZ2F0byBnb3phaW1hc3Uh",\
-      ...
-    }')
-
-
-    // JSON
-    def message_handler(jsondata):
-
-
-
-
-</pre>
-
-<br><br><br>
-
-## Events
-<pre>
-
-message_handler
-
-{'msg': 'DOMContentLoaded'}
-{'msg': 'WM_DESTROY'}
-{'msg': 'resize_window'}
-
-</pre>
-
-<br><br><br><br><br><br>
-
-
+## WIP

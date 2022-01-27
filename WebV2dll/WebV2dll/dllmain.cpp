@@ -13,6 +13,7 @@
 #pragma comment(lib, "comctl32.lib")
 
 #define WM_WEBV_USER (WM_USER + 0)
+const TCHAR* strClassName = TEXT("CREATE_WEBVIEW2");
 using namespace Microsoft::WRL;
 struct windowobj {
     HWND hwnd = nullptr;
@@ -25,7 +26,6 @@ struct windowobj {
 
 HINSTANCE hInst;
 int g_randomid = 0;
-const TCHAR* strClassName = TEXT("CREATE_WEBVIEW2");
 std::wstring g_startup_script = L"";
 std::vector<windowobj> m_windowobjs;
 
@@ -188,14 +188,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
-void init_webview2(HWND hWnd, const TCHAR* url)
+void init_webview2(HWND hWnd, std::wstring url2str)
 {
     CreateCoreWebView2EnvironmentWithOptions(nullptr, nullptr, nullptr,
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [hWnd, url](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+            [hWnd, url2str](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
                 env->CreateCoreWebView2Controller(hWnd,
                     Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                        [hWnd, url](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                        [hWnd, url2str](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
                             wil::com_ptr<ICoreWebView2> webviewWindow;
                             if (controller != nullptr) {
                                 auto webviewController = controller;
@@ -212,7 +212,7 @@ void init_webview2(HWND hWnd, const TCHAR* url)
 
                             resize_webview(hWnd);
                             webview_events(hWnd);
-                            load_url(hWnd, url);
+                            load_url(hWnd, url2str.c_str());
                             return S_OK;
                         })
                         .Get());
@@ -220,33 +220,18 @@ void init_webview2(HWND hWnd, const TCHAR* url)
             })
             .Get());
 }
-int WebV2dllCreate(int createid, const TCHAR* url, int x, int y, int width, int height)
+HWND create_window(int createid, const TCHAR* url, int x, int y, int width, int height)
 {
-
-    HINSTANCE hInstance = GetModuleHandle(0);
-    WNDCLASS winc;
-    winc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
-    winc.lpfnWndProc = WndProc;
-    winc.cbClsExtra = winc.cbWndExtra = 0;
-    winc.hInstance = hInstance;
-    winc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    winc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    winc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-    winc.lpszMenuName = NULL;
-    winc.lpszClassName = strClassName;
-    if (!RegisterClass(&winc))
-        return 0;
-
     if (x == -1 || y == -1) {
         x = CW_USEDEFAULT;
         y = CW_USEDEFAULT;
     }
+
     HWND hwnd = CreateWindow(
         strClassName, TEXT(""),
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         x, y, width, height,
-        NULL, NULL, hInstance, NULL);
-
+        NULL, NULL, hInst, NULL);
     if (hwnd == NULL)
         return 0;
 
@@ -258,7 +243,28 @@ int WebV2dllCreate(int createid, const TCHAR* url, int x, int y, int width, int 
     wobj.startup_script = L"";
     wobj.createid = createid;
     m_windowobjs.push_back(wobj);
-    init_webview2(hwnd, url);
+
+    std::wstring url2str = url;
+    init_webview2(hwnd, url2str);
+    return hwnd;
+}
+int WebV2dllCreate(int createid, const TCHAR* url, int x, int y, int width, int height)
+{
+    hInst = GetModuleHandle(0);
+    WNDCLASS winc;
+    winc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+    winc.lpfnWndProc = WndProc;
+    winc.cbClsExtra = winc.cbWndExtra = 0;
+    winc.hInstance = hInst;
+    winc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    winc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    winc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+    winc.lpszMenuName = NULL;
+    winc.lpszClassName = strClassName;
+    if (!RegisterClass(&winc))
+        return 0;
+
+    create_window(createid, url, x, y, width, height);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {

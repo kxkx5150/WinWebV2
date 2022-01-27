@@ -28,6 +28,14 @@ class WindInfo:
         return self.wndproc
 
 
+class COPYDATASTRUCT(ctypes.Structure):
+    _fields_ = [
+        ('dwData', wintypes.LPARAM),
+        ('cbData', wintypes.DWORD),
+        ('lpData', ctypes.c_void_p)
+    ]
+
+
 class WinWebV2:
     def __init__(self, cb):
         if not callable(cb):
@@ -42,20 +50,23 @@ class WinWebV2:
         target_path = os.path.join(os.path.dirname(__file__), 'dll/WebV2dll')
         self.webview2 = ctypes.WinDLL(target_path)
 
-        self.webview2.WebV2dllCreate.argtypes = [c_int, c_wchar_p, c_int, c_int, c_int, c_int]
-        self.webview2.get_main_hwnd.argtypes = [c_int]
-        self.webview2.get_main_hwnd.restype = HWND
-        self.webview2.resize_webview.argtypes = [HWND]
-
         self.webview2.get_webview_wmmsg_id.restype = c_int
         self.WM_WEBV_USER = self.webview2.get_webview_wmmsg_id()
-        self.PCOPYDATASTRUCT = ctypes.POINTER(self.COPYDATASTRUCT)
+        self.PCOPYDATASTRUCT = ctypes.POINTER(COPYDATASTRUCT)
         self.randomid = random.randint(1, 2147483640)
         self.webview2.receive_randomid(self.randomid)
         self.webview2.receive_randomid.argtypes = [c_int]
         self.message_handler = cb
 
+        self.webview2.WebV2dllCreate.argtypes = [c_int, c_wchar_p, c_int, c_int, c_int, c_int]
+        self.webview2.create_window.argtypes = [c_int, c_wchar_p, c_int, c_int, c_int, c_int]
+        self.webview2.create_window.restype = HWND
+
+        self.webview2.get_main_hwnd.argtypes = [c_int]
+        self.webview2.get_main_hwnd.restype = HWND
+        self.webview2.resize_webview.argtypes = [HWND]
         self.webview2.close_window.argtypes = [HWND]
+
         self.webview2.reload_page.argtypes = [HWND]
         self.webview2.load_url.argtypes = [HWND, c_wchar_p]
         self.webview2.set_global_startup_script.argtypes = [c_wchar_p]
@@ -65,24 +76,7 @@ class WinWebV2:
 
         self.window_infos = {}
 
-    def create_window(self, url, x, y, width, height):
-        createid = random.randint(1, 2147483640)
-        thread1 = threading.Thread(target=self.create_main_window, args=(createid, url, x, y, width, height),
-                                   daemon=True)
-        thread1.start()
-        time.sleep(0.1)
-
-        hwnd = self.webview2.get_main_hwnd(createid)
-        orgproc = windll.user32.GetWindowLongPtrW(hwnd, win32con.GWL_WNDPROC)
-        wndinf = WindInfo()
-        wndinf.set_hwnd(hwnd)
-        wndinf.set_wndproc(self.WINDOWPROC(orgproc))
-        self.window_infos[hwnd] = wndinf
-
-        windll.user32.SetWindowLongPtrW(
-            c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
-        thread1.join()
-
+    # private
     def create_main_window(self, createid, url, x, y, width, height):
         self.webview2.WebV2dllCreate(createid, url, x, y, width, height)
 
@@ -120,6 +114,31 @@ class WinWebV2:
         }
         self.message_handler(_json)
 
+    def set_wndproc(self, hwnd):
+        wndinf = WindInfo()
+        wndinf.set_hwnd(hwnd)
+        orgproc = windll.user32.GetWindowLongPtrW(hwnd, win32con.GWL_WNDPROC)
+        wndinf.set_wndproc(self.WINDOWPROC(orgproc))
+        self.window_infos[hwnd] = wndinf
+        windll.user32.SetWindowLongPtrW(
+            c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
+
+    # public
+    def create_window(self, url, x, y, width, height):
+        createid = random.randint(1, 2147483640)
+        thread = threading.Thread(target=self.create_main_window, args=(createid, url, x, y, width, height),
+                                  daemon=True)
+        thread.start()
+        time.sleep(0.1)
+        hwnd = self.webview2.get_main_hwnd(createid)
+        self.set_wndproc(hwnd)
+        thread.join()
+
+    def create_subwindow(self, url, x, y, width, height):
+        createid = random.randint(1, 2147483640)
+        hwnd = self.webview2.create_window(createid, url, x, y, width, height)
+        self.set_wndproc(hwnd)
+
     def close_window(self, hwnd):
         self.webview2.close_window(hwnd)
 
@@ -146,13 +165,6 @@ class WinWebV2:
 
     def send_json(self, hwnd, jsonstr):
         self.webview2.send_json(hwnd, jsonstr)
-
-    class COPYDATASTRUCT(ctypes.Structure):
-        _fields_ = [
-            ('dwData', wintypes.LPARAM),
-            ('cbData', wintypes.DWORD),
-            ('lpData', ctypes.c_void_p)
-        ]
 
 
 def message_handler(jsondata):
@@ -191,10 +203,13 @@ def message_handler(jsondata):
         elif jsondata['json']['msg'] == "send_json":
             jsondata['sender'].send_json(jsondata['hwnd'], '{"msg":"test"}')
 
+        elif jsondata['json']['msg'] == "create_subwindow":
+            jsondata['sender'].create_subwindow("https://www.google.com/", -1, -1, 600, 500)
+
 
 def main():
     wv2 = WinWebV2(message_handler)
-    target_path = os.path.join(os.path.dirname(__file__), 'html/index.html')
+    target_path = os.path.join(os.path.dirname(__file__), '../example/html/index.html')
     url = os.path.abspath(target_path)
     wv2.create_window(url, -1, -1, 700, 600)
 
