@@ -37,7 +37,7 @@ class COPYDATASTRUCT(ctypes.Structure):
 
 
 class WinWebV2:
-    def __init__(self, cb):
+    def __init__(self, cb, use_windows_proc=False):
         if not callable(cb):
             print("Error arguments\nPlease set Callback Function")
             return
@@ -74,6 +74,7 @@ class WinWebV2:
         self.webview2.exec_js.argtypes = [HWND, c_wchar_p]
         self.webview2.send_json.argtypes = [HWND, c_wchar_p]
 
+        self.use_windows_windproc = use_windows_proc
         self.window_infos = {}
 
     # private
@@ -105,6 +106,19 @@ class WinWebV2:
         return wndproc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
                        ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
 
+    def windows_windproc(self, hwnd, message, wparm, lparam):
+        if message == win32con.WM_DESTROY:
+            windll.user32.PostQuitMessage(0)
+            return 0
+        elif 0 == self.message_handler(hwnd, message, wparm, lparam):
+            return 0
+
+        wndproc = self.window_infos[hwnd].get_wndproc()
+        return wndproc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
+                       ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
+
+
+
     def apply_message_handler(self, hwnd, msg, jsondata=None):
         _json = {
             "sender": self,
@@ -120,8 +134,13 @@ class WinWebV2:
         orgproc = windll.user32.GetWindowLongPtrW(hwnd, win32con.GWL_WNDPROC)
         wndinf.set_wndproc(self.WINDOWPROC(orgproc))
         self.window_infos[hwnd] = wndinf
-        windll.user32.SetWindowLongPtrW(
-            c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
+
+        if self.use_windows_windproc:
+            windll.user32.SetWindowLongPtrW(
+                c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.windows_windproc), c_void_p))
+        else:
+            windll.user32.SetWindowLongPtrW(
+                c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
 
     # public
     def create_window(self, url, x, y, width, height):
@@ -207,8 +226,26 @@ def message_handler(jsondata):
             jsondata['sender'].create_subwindow("https://www.google.com/", -1, -1, 600, 500)
 
 
+def windows_windproc(hwnd, message, wparm, lparam) -> int:
+    if message == win32con.WM_MOVE:
+        print("WM_MOVE")
+        return 0
+    elif message == win32con.WM_SIZE:
+        print("WM_SIZE")
+        return 0
+    return -1
+
+
 def main():
-    wv2 = WinWebV2(message_handler)
+    use_windows_proc = True
+
+    if use_windows_proc:
+        # Advanced
+        wv2 = WinWebV2(windows_windproc, use_windows_proc)
+    else:
+        # Default
+        wv2 = WinWebV2(message_handler)
+
     target_path = os.path.join(os.path.dirname(__file__), '../example/html/index.html')
     url = os.path.abspath(target_path)
     wv2.create_window(url, -1, -1, 700, 600)
