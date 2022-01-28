@@ -29,6 +29,7 @@ int g_randomid = 0;
 std::wstring g_startup_script = L"";
 std::vector<windowobj> m_windowobjs;
 
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call) {
@@ -124,6 +125,14 @@ void send_json(HWND hWnd, const TCHAR* jsonstr)
     int idx = get_current_windowobj_idx(hWnd);
     m_windowobjs[idx].webviewWindow->PostWebMessageAsJson(jsonstr);
 }
+void close_window_event(HWND hWnd)
+{
+    int idx = get_current_windowobj_idx(hWnd);
+    m_windowobjs.erase(m_windowobjs.begin() + idx);
+    if (m_windowobjs.size() < 1) {
+        PostQuitMessage(0);
+    }
+}
 void CHECK_FAILURE(HRESULT hr)
 {
     if (FAILED(hr)) {
@@ -174,19 +183,6 @@ void webview_events(HWND hWnd)
             })
             .Get(),
         &m_DOMContentLoadedToken);
-}
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message) {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-
-    default:
-        break;
-    }
-
-    return DefWindowProc(hWnd, message, wParam, lParam);
 }
 void init_webview2(HWND hWnd, std::wstring url2str)
 {
@@ -271,4 +267,17 @@ int WebV2dllCreate(int createid, const TCHAR* url, int x, int y, int width, int 
         DispatchMessage(&msg);
     }
     return (int)msg.wParam;
+}
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message) {
+    case WM_DESTROY:
+        close_window_event(hWnd);
+        break;
+
+    default:
+        break;
+    }
+
+    return DefWindowProc(hWnd, message, wParam, lParam);
 }

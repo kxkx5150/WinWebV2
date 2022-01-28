@@ -20,8 +20,7 @@ setup(
     include_package_data=True,
     package_data={
         "WinWebV2": [
-            'dll/*',
-            'html/*'
+            'dll/*'
         ]
     },
     python_requires='>=3.9',

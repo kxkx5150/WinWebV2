@@ -43,7 +43,6 @@ function init() {
     document.getElementById("maximize_window").addEventListener("click",(e)=>{
         sendMSG("maximize_window");
     })
-
     document.getElementById("execute_js").addEventListener("click",(e)=>{
         sendMSG("execute_js");
     })
@@ -55,6 +54,12 @@ function init() {
     })
     document.getElementById("create_subwindow").addEventListener("click",(e)=>{
         sendMSG("create_subwindow");
+    })
+    document.getElementById("get_active_hwnd").addEventListener("click",(e)=>{
+        sendMSG("get_active_hwnd");
+    })
+    document.getElementById("get_all_hwnds").addEventListener("click",(e)=>{
+        sendMSG("get_all_hwnds");
     })
 }
 init();

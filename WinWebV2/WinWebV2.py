@@ -14,6 +14,7 @@ class WindInfo:
     def __init__(self):
         self.hwnd = None
         self.wndproc = None
+        self.closed = False
 
     def set_hwnd(self, hwnd):
         self.hwnd = hwnd
@@ -26,6 +27,9 @@ class WindInfo:
 
     def get_wndproc(self):
         return self.wndproc
+
+    def close(self):
+        self.closed = True
 
 
 class COPYDATASTRUCT(ctypes.Structure):
@@ -77,6 +81,7 @@ class WinWebV2:
         self.use_windows_windproc = use_windows_proc
         self.window_infos = {}
 
+    #
     # private
     def create_main_window(self, createid, url, x, y, width, height):
         self.webview2.WebV2dllCreate(createid, url, x, y, width, height)
@@ -84,8 +89,11 @@ class WinWebV2:
     def wndproc(self, hwnd, message, wparm, lparam):
         if message == win32con.WM_DESTROY:
             self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"WM_DESTROY"}'))
-            windll.user32.PostQuitMessage(0)
-            return 0
+            self.window_infos[hwnd].close()
+            if 0 == self.count_open_windows():
+                self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"post_quit_message"}'))
+                windll.user32.PostQuitMessage(0)
+                return 0
 
         elif message == win32con.WM_SIZE:
             self.webview2.resize_webview(self.window_infos[hwnd].get_hwnd())
@@ -107,17 +115,12 @@ class WinWebV2:
                        ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
 
     def windows_windproc(self, hwnd, message, wparm, lparam):
-        if message == win32con.WM_DESTROY:
-            windll.user32.PostQuitMessage(0)
-            return 0
-        elif 0 == self.message_handler(hwnd, message, wparm, lparam):
+        if 0 == self.message_handler(hwnd, message, wparm, lparam):
             return 0
 
         wndproc = self.window_infos[hwnd].get_wndproc()
         return wndproc(ctypes.c_void_p(hwnd), ctypes.c_uint(message),
                        ctypes.c_ulonglong(wparm), ctypes.c_longlong(lparam))
-
-
 
     def apply_message_handler(self, hwnd, msg, jsondata=None):
         _json = {
@@ -142,6 +145,7 @@ class WinWebV2:
             windll.user32.SetWindowLongPtrW(
                 c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
 
+    #
     # public
     def create_window(self, url, x, y, width, height):
         createid = random.randint(1, 2147483640)
@@ -170,6 +174,29 @@ class WinWebV2:
     def show_window(self, hwnd):
         windll.user32.ShowWindow(hwnd, win32con.SW_SHOWNORMAL)
 
+    def get_active_hwnd(self):
+        hwnd = windll.user32.GetActiveWindow()
+        if not hwnd:
+            return None
+        if not ctypes.windll.user32.IsWindowVisible(hwnd):
+            return None
+        if hwnd not in self.window_infos:
+            return None
+        return hwnd
+
+    def get_all_hwnds(self):
+        hwnds = []
+        for info in self.window_infos:
+            item = self.window_infos[info]
+            if item.closed:
+                continue
+            hwnds.append(item.get_hwnd())
+        return hwnds
+
+    def count_open_windows(self):
+        wlist = self.get_all_hwnds()
+        return len(wlist)
+
     def load_url(self, hwnd, url):
         self.webview2.load_url(hwnd, url)
 
@@ -194,6 +221,9 @@ def message_handler(jsondata):
 
         elif jsondata['json']['msg'] == "WM_DESTROY":
             print("WM_DESTROY")
+
+        elif jsondata['json']['msg'] == "post_quit_message":
+            print("post_quit_message")
 
         elif jsondata['json']['msg'] == "resize_window":
             print("resize_window")
@@ -225,6 +255,14 @@ def message_handler(jsondata):
         elif jsondata['json']['msg'] == "create_subwindow":
             jsondata['sender'].create_subwindow("https://www.google.com/", -1, -1, 600, 500)
 
+        elif jsondata['json']['msg'] == "get_active_hwnd":
+            hwnd = jsondata['sender'].get_active_hwnd()
+            print(hwnd)
+
+        elif jsondata['json']['msg'] == "get_all_hwnds":
+            hwnds = jsondata['sender'].get_all_hwnds()
+            print(hwnds)
+
 
 def windows_windproc(hwnd, message, wparm, lparam) -> int:
     if message == win32con.WM_MOVE:
@@ -233,11 +271,19 @@ def windows_windproc(hwnd, message, wparm, lparam) -> int:
     elif message == win32con.WM_SIZE:
         print("WM_SIZE")
         return 0
+    elif message == win32con.WM_COPYDATA:
+        print("Receive message")
+        copystrct = ctypes.POINTER(COPYDATASTRUCT)
+        pcds = ctypes.cast(lparam, copystrct)
+        msgstr = ctypes.wstring_at(pcds.contents.lpData)
+        print(json.loads(msgstr))
+        return 0
+
     return -1
 
 
 def main():
-    use_windows_proc = True
+    use_windows_proc = False
 
     if use_windows_proc:
         # Advanced
