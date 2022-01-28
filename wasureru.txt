@@ -1,3 +1,6 @@
+requirements.txt
+pip freeze > requirements.txt
+
 wheel
 python setup.py bdist_wheel
 

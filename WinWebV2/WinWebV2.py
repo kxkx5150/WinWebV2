@@ -1,6 +1,6 @@
 import os
 import time
-import json
+import orjson
 import random
 import threading
 import win32con
@@ -82,6 +82,7 @@ class WinWebV2:
 
         self.use_windows_windproc = use_windows_proc
         self.window_infos = {}
+        self.create_custom_wm_message()
 
     #
     # private
@@ -90,16 +91,25 @@ class WinWebV2:
 
     def wndproc(self, hwnd, message, wparm, lparam):
         if message == win32con.WM_DESTROY:
-            self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"WM_DESTROY"}'))
+            self.apply_message_handler(hwnd, "receive_json", orjson.loads('{"msg":"WM_DESTROY"}'))
             self.window_infos[hwnd].close()
             if 0 == self.count_open_windows():
-                self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"post_quit_message"}'))
+                self.apply_message_handler(hwnd, "receive_json", orjson.loads('{"msg":"post_quit_message"}'))
                 windll.user32.PostQuitMessage(0)
                 return 0
 
         elif message == win32con.WM_SIZE:
             self.webview2.resize_webview(self.window_infos[hwnd].get_hwnd())
-            self.apply_message_handler(hwnd, "receive_json", json.loads('{"msg":"resize_window"}'))
+            self.apply_message_handler(hwnd, "receive_json", orjson.loads('{"msg":"resize_window"}'))
+            return 0
+
+        elif message == self.WM_WEBV_ACCKEY:
+            pcds = ctypes.cast(lparam, self.PCOPYDATASTRUCT)
+            dwdata = pcds.contents.dwData
+            if self.randomid != dwdata:
+                return 0
+
+            msgstr = ctypes.wstring_at(pcds.contents.lpData)
             return 0
 
         elif message == win32con.WM_COPYDATA:
@@ -109,7 +119,7 @@ class WinWebV2:
                 return 0
 
             msgstr = ctypes.wstring_at(pcds.contents.lpData)
-            self.apply_message_handler(hwnd, "receive_json", json.loads(msgstr))
+            self.apply_message_handler(hwnd, "receive_json", orjson.loads(msgstr))
             return 0
 
         wndproc = self.window_infos[hwnd].get_wndproc()
@@ -146,6 +156,10 @@ class WinWebV2:
         else:
             windll.user32.SetWindowLongPtrW(
                 c_void_p(hwnd), win32con.GWL_WNDPROC, cast(self.WINDOWPROC(self.wndproc), c_void_p))
+
+    def create_custom_wm_message(self):
+        wmuser = self.WM_WEBV_USER
+        self.WM_WEBV_ACCKEY = wmuser + 1
 
     #
     # public
@@ -234,7 +248,11 @@ class WinWebV2:
 def message_handler(jsondata):
     if jsondata['msg'] == 'receive_json':
 
-        if jsondata['json']['msg'] == "DOMContentLoaded":
+        if jsondata['json']['msg'] == "base64":
+            print("base64")
+            print(len(jsondata['json']['base64']))
+
+        elif jsondata['json']['msg'] == "DOMContentLoaded":
             print("DOMContentLoaded")
 
         elif jsondata['json']['msg'] == "WM_DESTROY":
@@ -310,7 +328,7 @@ def windows_windproc(hwnd, message, wparm, lparam) -> int:
         copystrct = ctypes.POINTER(COPYDATASTRUCT)
         pcds = ctypes.cast(lparam, copystrct)
         msgstr = ctypes.wstring_at(pcds.contents.lpData)
-        print(json.loads(msgstr))
+        print(orjson.loads(msgstr))
         return 0
 
     return -1
@@ -328,7 +346,7 @@ def main():
 
     target_path = os.path.join(os.path.dirname(__file__), '../example/html/index.html')
     url = os.path.abspath(target_path)
-    wv2.create_window(url, -1, -1, 700, 600)
+    wv2.create_window(url, -1, -1, 550, 700)
 
 
 if __name__ == "__main__":

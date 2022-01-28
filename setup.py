@@ -30,6 +30,7 @@ setup(
         "Operating System :: Microsoft :: Windows"
     ],
     install_requires=[
+        "orjson",
         "pypiwin32",
         "pywin32"
     ]

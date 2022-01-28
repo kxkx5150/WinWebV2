@@ -13,6 +13,8 @@
 #pragma comment(lib, "comctl32.lib")
 
 #define WM_WEBV_USER (WM_USER + 0)
+#define WM_WEBV_ACCKEY (WM_USER + 1)
+
 const TCHAR* strClassName = TEXT("CREATE_WEBVIEW2");
 using namespace Microsoft::WRL;
 struct windowobj {
@@ -73,16 +75,25 @@ int get_webview_wmmsg_id()
 {
     return WM_WEBV_USER;
 }
-void set_str_to_copydata(HWND hWnd, std::wstring s)
+void set_copydata(HWND hWnd, std::wstring s, int wmmsg)
 {
+    DWORD bytes = (s.size()+10) * sizeof(wchar_t);
     TCHAR* buffer = new TCHAR[s.length() + 1];
     wcscpy_s(buffer, s.length() + 1, s.c_str());
     COPYDATASTRUCT data_to_send = { 0 };
     data_to_send.dwData = g_randomid;
-    data_to_send.cbData = (DWORD)8191;
+    data_to_send.cbData = bytes;
     data_to_send.lpData = buffer;
-    SendMessage(hWnd, WM_COPYDATA, 0, (LPARAM)&data_to_send);
+    SendMessage(hWnd, wmmsg, 0, (LPARAM)&data_to_send);
     delete[] buffer;
+}
+void set_str_to_copydata(HWND hWnd, std::wstring s)
+{
+    set_copydata(hWnd, s, WM_WEBV_ACCKEY);
+}
+void set_evntstr_to_copydata(HWND hWnd, std::wstring s)
+{
+    set_copydata(hWnd, s, WM_COPYDATA);
 }
 HWND get_main_hwnd(int createid)
 {
@@ -145,6 +156,47 @@ void webview_events(HWND hWnd)
 {
     int idx = get_current_windowobj_idx(hWnd);
 
+    EventRegistrationToken mackeytoken;
+    m_windowobjs[idx].webviewController->add_AcceleratorKeyPressed(
+        Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
+            [hWnd](ICoreWebView2Controller* sender,
+                ICoreWebView2AcceleratorKeyPressedEventArgs* args) -> HRESULT {
+                COREWEBVIEW2_KEY_EVENT_KIND kind;
+                UINT key = 0;
+                INT l_param = 0;
+                UINT message = 0;
+
+                if (FAILED(args->get_KeyEventKind(&kind)))
+                    return S_OK;
+                if (FAILED(args->get_VirtualKey(&key)))
+                    return S_OK;
+                if (FAILED(args->get_KeyEventLParam(&l_param)))
+                    return S_OK;
+
+                switch (kind) {
+                case COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN:
+                    message = WM_KEYDOWN;
+                    break;
+                case COREWEBVIEW2_KEY_EVENT_KIND_KEY_UP:
+                    message = WM_KEYUP;
+                    break;
+                case COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN:
+                    message = WM_SYSKEYDOWN;
+                    break;
+                case COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_UP:
+                    message = WM_SYSKEYUP;
+                    break;
+                }
+                std::wstring s = std::to_wstring(message);
+                s += L"###";
+                s += std::to_wstring(key);
+                s += L"###";
+                s += std::to_wstring(l_param);
+                set_str_to_copydata(hWnd, s);
+            })
+            .Get(),
+        &mackeytoken);
+
     EventRegistrationToken token;
     m_windowobjs[idx].webviewWindow->add_WebMessageReceived(
         Callback<ICoreWebView2WebMessageReceivedEventHandler>(
@@ -154,7 +206,7 @@ void webview_events(HWND hWnd)
                 wil::unique_cotaskmem_string webMessageAsJson;
                 CHECK_FAILURE(args->get_WebMessageAsJson(&webMessageAsJson));
                 Sleep(200);
-                set_str_to_copydata(hWnd, webMessageAsJson.get());
+                set_evntstr_to_copydata(hWnd, webMessageAsJson.get());
                 return S_OK;
             })
             .Get(),
@@ -178,7 +230,7 @@ void webview_events(HWND hWnd)
         Callback<ICoreWebView2DOMContentLoadedEventHandler>(
             [hWnd](ICoreWebView2* sender, ICoreWebView2DOMContentLoadedEventArgs* args) -> HRESULT {
                 std::wstring msgstr = L"{\"msg\"\:\"DOMContentLoaded\"}";
-                set_str_to_copydata(hWnd, msgstr);
+                set_evntstr_to_copydata(hWnd, msgstr);
                 return S_OK;
             })
             .Get(),

@@ -15,6 +15,7 @@ function OnFileSelect(inptelem) {
         const fileReader = new FileReader();
         fileReader.onload = function () {
             sendMSG("base64", "image", this.result);
+            console.log("base64 length : ",this.result.length)
         };
         fileReader.readAsDataURL(file);
     });

@@ -1,5 +1,5 @@
 import os
-import json
+import orjson
 import win32con
 import ctypes
 from ctypes import wintypes
@@ -19,7 +19,11 @@ class COPYDATASTRUCT(ctypes.Structure):
 def message_handler(jsondata):
     if jsondata['msg'] == 'receive_json':
 
-        if jsondata['json']['msg'] == "DOMContentLoaded":
+        if jsondata['json']['msg'] == "base64":
+            print("base64")
+            print(len(jsondata['json']['base64']))
+
+        elif jsondata['json']['msg'] == "DOMContentLoaded":
             print("DOMContentLoaded")
 
         elif jsondata['json']['msg'] == "WM_DESTROY":
@@ -95,7 +99,7 @@ def windows_windproc(hwnd, message, wparm, lparam) -> int:
         copystrct = ctypes.POINTER(COPYDATASTRUCT)
         pcds = ctypes.cast(lparam, copystrct)
         msgstr = ctypes.wstring_at(pcds.contents.lpData)
-        print(json.loads(msgstr))
+        print(orjson.loads(msgstr))
         return 0
 
     return -1
@@ -113,9 +117,8 @@ def main():
 
     target_path = os.path.join(os.path.dirname(__file__), '../example/html/index.html')
     url = os.path.abspath(target_path)
-    wv2.create_window(url, -1, -1, 700, 600)
+    wv2.create_window(url, -1, -1, 550, 700)
 
 
 if __name__ == "__main__":
     main()
-
