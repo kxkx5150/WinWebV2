@@ -8,6 +8,8 @@ import ctypes
 from ctypes import *
 from ctypes import wintypes
 from ctypes.wintypes import *
+import tkinter
+from tkinter import filedialog as tkFileDialog
 
 
 class WindInfo:
@@ -212,6 +214,21 @@ class WinWebV2:
     def send_json(self, hwnd, jsonstr):
         self.webview2.send_json(hwnd, jsonstr)
 
+    def choose_file(self, multiple=False):
+        tkroot = tkinter.Tk()
+        tkroot.withdraw()
+        if multiple:
+            return tkFileDialog.askopenfilenames()
+        else:
+            return str(tkFileDialog.askopenfilename())
+
+    def choose_directory(self):
+        return tkFileDialog.askdirectory()
+
+    def save_dialog(self):
+        return tkFileDialog.asksaveasfilename()
+
+
 #
 # exsample
 def message_handler(jsondata):
@@ -263,6 +280,22 @@ def message_handler(jsondata):
         elif jsondata['json']['msg'] == "get_all_hwnds":
             hwnds = jsondata['sender'].get_all_hwnds()
             print(hwnds)
+
+        elif jsondata['json']['msg'] == "choose_file":
+            fname = jsondata['sender'].choose_file()
+            print(fname)
+
+        elif jsondata['json']['msg'] == "choose_files":
+            fname = jsondata['sender'].choose_file(True)
+            print(fname)
+
+        elif jsondata['json']['msg'] == "choose_directory":
+            dname = jsondata['sender'].choose_directory()
+            print(dname)
+
+        elif jsondata['json']['msg'] == "save_dialog":
+            fname = jsondata['sender'].save_dialog()
+            print(fname)
 
 
 def windows_windproc(hwnd, message, wparm, lparam) -> int:

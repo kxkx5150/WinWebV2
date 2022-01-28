@@ -61,5 +61,17 @@ function init() {
     document.getElementById("get_all_hwnds").addEventListener("click",(e)=>{
         sendMSG("get_all_hwnds");
     })
+    document.getElementById("choose_file").addEventListener("click",(e)=>{
+        sendMSG("choose_file");
+    })
+    document.getElementById("choose_files").addEventListener("click",(e)=>{
+        sendMSG("choose_files");
+    })
+    document.getElementById("choose_directory").addEventListener("click",(e)=>{
+        sendMSG("choose_directory");
+    })
+    document.getElementById("save_dialog").addEventListener("click",(e)=>{
+        sendMSG("save_dialog");
+    })
 }
 init();

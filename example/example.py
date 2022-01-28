@@ -15,6 +15,7 @@ class COPYDATASTRUCT(ctypes.Structure):
         ('lpData', ctypes.c_void_p)
     ]
 
+
 def message_handler(jsondata):
     if jsondata['msg'] == 'receive_json':
 
@@ -65,6 +66,22 @@ def message_handler(jsondata):
             hwnds = jsondata['sender'].get_all_hwnds()
             print(hwnds)
 
+        elif jsondata['json']['msg'] == "choose_file":
+            fname = jsondata['sender'].choose_file()
+            print(fname)
+
+        elif jsondata['json']['msg'] == "choose_files":
+            fname = jsondata['sender'].choose_file(True)
+            print(fname)
+
+        elif jsondata['json']['msg'] == "choose_directory":
+            dname = jsondata['sender'].choose_directory()
+            print(dname)
+
+        elif jsondata['json']['msg'] == "save_dialog":
+            fname = jsondata['sender'].save_dialog()
+            print(fname)
+
 
 def windows_windproc(hwnd, message, wparm, lparam) -> int:
     if message == win32con.WM_MOVE:
@@ -94,7 +111,7 @@ def main():
         # Default
         wv2 = WinWebV2(message_handler)
 
-    target_path = os.path.join(os.path.dirname(__file__), 'html/index.html')
+    target_path = os.path.join(os.path.dirname(__file__), '../example/html/index.html')
     url = os.path.abspath(target_path)
     wv2.create_window(url, -1, -1, 700, 600)
 
