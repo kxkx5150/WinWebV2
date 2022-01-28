@@ -212,7 +212,8 @@ class WinWebV2:
     def send_json(self, hwnd, jsonstr):
         self.webview2.send_json(hwnd, jsonstr)
 
-
+#
+# exsample
 def message_handler(jsondata):
     if jsondata['msg'] == 'receive_json':
 

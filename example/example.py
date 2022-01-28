@@ -1,5 +1,19 @@
-import WinWebV2
 import os
+import json
+import win32con
+import ctypes
+from ctypes import wintypes
+import WinWebV2
+
+
+# exsample
+
+class COPYDATASTRUCT(ctypes.Structure):
+    _fields_ = [
+        ('dwData', wintypes.LPARAM),
+        ('cbData', wintypes.DWORD),
+        ('lpData', ctypes.c_void_p)
+    ]
 
 def message_handler(jsondata):
     if jsondata['msg'] == 'receive_json':
@@ -9,6 +23,9 @@ def message_handler(jsondata):
 
         elif jsondata['json']['msg'] == "WM_DESTROY":
             print("WM_DESTROY")
+
+        elif jsondata['json']['msg'] == "post_quit_message":
+            print("post_quit_message")
 
         elif jsondata['json']['msg'] == "resize_window":
             print("resize_window")
@@ -37,9 +54,46 @@ def message_handler(jsondata):
         elif jsondata['json']['msg'] == "send_json":
             jsondata['sender'].send_json(jsondata['hwnd'], '{"msg":"test"}')
 
+        elif jsondata['json']['msg'] == "create_subwindow":
+            jsondata['sender'].create_subwindow("https://www.google.com/", -1, -1, 600, 500)
+
+        elif jsondata['json']['msg'] == "get_active_hwnd":
+            hwnd = jsondata['sender'].get_active_hwnd()
+            print(hwnd)
+
+        elif jsondata['json']['msg'] == "get_all_hwnds":
+            hwnds = jsondata['sender'].get_all_hwnds()
+            print(hwnds)
+
+
+def windows_windproc(hwnd, message, wparm, lparam) -> int:
+    if message == win32con.WM_MOVE:
+        print("WM_MOVE")
+        return 0
+    elif message == win32con.WM_SIZE:
+        print("WM_SIZE")
+        return 0
+    elif message == win32con.WM_COPYDATA:
+        print("Receive message")
+        copystrct = ctypes.POINTER(COPYDATASTRUCT)
+        pcds = ctypes.cast(lparam, copystrct)
+        msgstr = ctypes.wstring_at(pcds.contents.lpData)
+        print(json.loads(msgstr))
+        return 0
+
+    return -1
+
 
 def main():
-    wv2 = WinWebV2(message_handler)
+    use_windows_proc = False
+
+    if use_windows_proc:
+        # Advanced
+        wv2 = WinWebV2(windows_windproc, use_windows_proc)
+    else:
+        # Default
+        wv2 = WinWebV2(message_handler)
+
     target_path = os.path.join(os.path.dirname(__file__), 'html/index.html')
     url = os.path.abspath(target_path)
     wv2.create_window(url, -1, -1, 700, 600)
@@ -48,4 +102,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-    
