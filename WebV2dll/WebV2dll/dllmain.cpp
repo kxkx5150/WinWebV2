@@ -12,8 +12,8 @@
 #include "WebView2.h"
 #pragma comment(lib, "comctl32.lib")
 
-#define WM_WEBV_USER (WM_USER + 0)
-#define WM_WEBV_ACCKEY (WM_USER + 1)
+#define WM_WEBV_USER (WM_APP + 0)
+#define WM_WEBV_ACCKEY (WM_APP + 1)
 
 const TCHAR* strClassName = TEXT("CREATE_WEBVIEW2");
 using namespace Microsoft::WRL;
@@ -156,46 +156,46 @@ void webview_events(HWND hWnd)
 {
     int idx = get_current_windowobj_idx(hWnd);
 
-    EventRegistrationToken mackeytoken;
-    m_windowobjs[idx].webviewController->add_AcceleratorKeyPressed(
-        Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
-            [hWnd](ICoreWebView2Controller* sender,
-                ICoreWebView2AcceleratorKeyPressedEventArgs* args) -> HRESULT {
-                COREWEBVIEW2_KEY_EVENT_KIND kind;
-                UINT key = 0;
-                INT l_param = 0;
-                UINT message = 0;
+    //EventRegistrationToken mackeytoken;
+    //m_windowobjs[idx].webviewController->add_AcceleratorKeyPressed(
+    //    Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
+    //        [hWnd](ICoreWebView2Controller* sender,
+    //            ICoreWebView2AcceleratorKeyPressedEventArgs* args) -> HRESULT {
+    //            COREWEBVIEW2_KEY_EVENT_KIND kind;
+    //            UINT key = 0;
+    //            INT l_param = 0;
+    //            UINT message = 0;
 
-                if (FAILED(args->get_KeyEventKind(&kind)))
-                    return S_OK;
-                if (FAILED(args->get_VirtualKey(&key)))
-                    return S_OK;
-                if (FAILED(args->get_KeyEventLParam(&l_param)))
-                    return S_OK;
+    //            if (FAILED(args->get_KeyEventKind(&kind)))
+    //                return S_OK;
+    //            if (FAILED(args->get_VirtualKey(&key)))
+    //                return S_OK;
+    //            if (FAILED(args->get_KeyEventLParam(&l_param)))
+    //                return S_OK;
 
-                switch (kind) {
-                case COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN:
-                    message = WM_KEYDOWN;
-                    break;
-                case COREWEBVIEW2_KEY_EVENT_KIND_KEY_UP:
-                    message = WM_KEYUP;
-                    break;
-                case COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN:
-                    message = WM_SYSKEYDOWN;
-                    break;
-                case COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_UP:
-                    message = WM_SYSKEYUP;
-                    break;
-                }
-                std::wstring s = std::to_wstring(message);
-                s += L"###";
-                s += std::to_wstring(key);
-                s += L"###";
-                s += std::to_wstring(l_param);
-                set_str_to_copydata(hWnd, s);
-            })
-            .Get(),
-        &mackeytoken);
+    //            switch (kind) {
+    //            case COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN:
+    //                message = WM_KEYDOWN;
+    //                break;
+    //            case COREWEBVIEW2_KEY_EVENT_KIND_KEY_UP:
+    //                message = WM_KEYUP;
+    //                break;
+    //            case COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN:
+    //                message = WM_SYSKEYDOWN;
+    //                break;
+    //            case COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_UP:
+    //                message = WM_SYSKEYUP;
+    //                break;
+    //            }
+    //            std::wstring s = std::to_wstring(message);
+    //            s += L"###";
+    //            s += std::to_wstring(key);
+    //            s += L"###";
+    //            s += std::to_wstring(l_param);
+    //            set_str_to_copydata(hWnd, s);
+    //        })
+    //        .Get(),
+    //    &mackeytoken);
 
     EventRegistrationToken token;
     m_windowobjs[idx].webviewWindow->add_WebMessageReceived(

@@ -103,14 +103,14 @@ class WinWebV2:
             self.apply_message_handler(hwnd, "receive_json", orjson.loads('{"msg":"resize_window"}'))
             return 0
 
-        elif message == self.WM_WEBV_ACCKEY:
-            pcds = ctypes.cast(lparam, self.PCOPYDATASTRUCT)
-            dwdata = pcds.contents.dwData
-            if self.randomid != dwdata:
-                return 0
-
-            msgstr = ctypes.wstring_at(pcds.contents.lpData)
-            return 0
+        # elif message == self.WM_WEBV_ACCKEY:
+        #     pcds = ctypes.cast(lparam, self.PCOPYDATASTRUCT)
+        #     dwdata = pcds.contents.dwData
+        #     if self.randomid != dwdata:
+        #         return 0
+        #
+        #     msgstr = ctypes.wstring_at(pcds.contents.lpData)
+        #     return 0
 
         elif message == win32con.WM_COPYDATA:
             pcds = ctypes.cast(lparam, self.PCOPYDATASTRUCT)
