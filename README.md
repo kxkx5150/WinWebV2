@@ -2,6 +2,11 @@
 ### Python Webview2 GUI
 ### Create HTML User Interface using WinWebV2 in Python
 
+<br><br>
+
+Webview2 Runtime (required)  
+https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section  
+
 <br>
 
 Webview2  
